@@ -16,12 +16,15 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -112,6 +115,39 @@ func main() {
 	// product specific generation
 	generateProductsFile("provider_dcl_endpoints", productsForVersion)
 	generateProductsFile("provider_dcl_client_creation", productsForVersion)
+
+	// save the products in a file
+	outputFolder := filepath.Join(*oPath)
+	objects := make(map[string]map[string]interface{}, len(resourcesForVersion))
+	for _, o := range resourcesForVersion {
+		link := ""
+		if o.Reference != nil && o.Reference.url != "" {
+			link = o.Reference.url
+		}
+		objects[o.TerraformName().snakecase()] = map[string]interface{}{
+			"name":              o.Name().snakecase(),
+			"api_name":          o.ProductName().snakecase(),
+			"import_id_formats": o.ImportFormats,
+			"terraform_name":    o.TerraformName().snakecase(),
+			// "product_name":      o.TerraformProductName.snakecase(),
+			"resource_name": o.Name().snakecase(),
+			"id":            o.ID,
+			"self_link_url": link,
+			"location":      o.location,
+			"list_fields":   o.ListFields,
+		}
+	}
+
+	sourceByte, err := json.Marshal(objects)
+	if err != nil {
+		log.Printf("Error marshaling JSON: %v", err)
+		glog.Exit(err)
+	}
+	log.Printf("Generated JSON size: %d bytes", len(sourceByte))
+	err = os.WriteFile(filepath.Join(outputFolder, "all_data_resources_tpgtools.json"), sourceByte, 0644)
+	if err != nil {
+		glog.Exit(err)
+	}
 
 	if oPath == nil || *oPath == "" {
 		glog.Info("Skipping copying handwritten files, no output specified")

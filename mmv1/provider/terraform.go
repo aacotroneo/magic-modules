@@ -293,10 +293,10 @@ func (t *Terraform) FullResourceName(object api.Resource) string {
 }
 
 func (t Terraform) CopyCommonFiles(outputFolder string, generateCode, generateDocs bool) {
-	log.Printf("Copying common files for %s", ProviderName(t))
+	log.Printf("Skipping common files for %s", ProviderName(t))
 
-	files := t.getCommonCopyFiles(t.TargetVersionName, generateCode, generateDocs)
-	t.CopyFileList(outputFolder, files, generateCode)
+	// files := t.getCommonCopyFiles(t.TargetVersionName, generateCode, generateDocs)
+	// t.CopyFileList(outputFolder, files, generateCode)
 }
 
 // To copy a new folder, add the folder to foldersCopiedToRootDir or foldersCopiedToGoogleDir.
@@ -408,9 +408,9 @@ func (t Terraform) CopyFileList(outputFolder string, files map[string]string, ge
 			t.replaceImportPath(outputFolder, target)
 		}
 
-		if filepath.Ext(target) == ".go" {
-			t.addHashicorpCopyRightHeader(outputFolder, target)
-		}
+		// if filepath.Ext(target) == ".go" {
+		// 	t.addHashicorpCopyRightHeader(outputFolder, target)
+		// }
 	}
 }
 
@@ -507,7 +507,7 @@ func (t Terraform) CompileFileList(outputFolder string, files map[string]string,
 			continue
 		}
 		t.replaceImportPath(outputFolder, target)
-		t.addHashicorpCopyRightHeader(outputFolder, target)
+		// t.addHashicorpCopyRightHeader(outputFolder, target)
 	}
 }
 
