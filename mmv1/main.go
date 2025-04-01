@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"github.com/GoogleCloudPlatform/magic-modules/mmv1/api"
 	"github.com/GoogleCloudPlatform/magic-modules/mmv1/openapi_generate"
 	"github.com/GoogleCloudPlatform/magic-modules/mmv1/provider"
+	"github.com/golang/glog"
 )
 
 var wg sync.WaitGroup
@@ -186,6 +188,62 @@ func main() {
 		providerToGenerate.CompileCommonFiles(*outputPath, productsForVersion, "")
 	}
 
+	// save the products in a file
+	outputFolder := filepath.Join(*outputPath)
+	productsMap := make(map[string]interface{})
+	for _, product := range productsForVersion {
+		p := map[string]interface{}{
+			"name":            product.Name,
+			"api_name":        product.ApiName,
+			"cai_base_url":    product.CaiBaseUrl,
+			"base_url":        product.BaseUrl,
+			"operation_retry": product.OperationRetry,
+			"legacy_name":     product.LegacyName,
+		}
+
+		// Add versions as simple strings
+		versions := make([]string, len(product.Versions))
+		for i, v := range product.Versions {
+			versions[i] = v.Name
+		}
+		p["versions"] = versions
+
+		objects := make(map[string]map[string]interface{}, len(product.Objects))
+		for _, o := range product.Objects {
+			objects[o.TerraformName()] = map[string]interface{}{
+				"name":              o.Name,
+				"api_name":          o.ApiName,
+				"import_id_formats": o.ImportIdFormatsFromResource(),
+				"terraform_name":    o.TerraformName(),
+				"resource_name":     o.ResourceName(),
+				"ExcludeRead":       o.ExcludeRead,
+				"exclude":           o.Exclude,
+				"autogen_status":    o.AutogenStatus,
+				"lineage":           o.Lineage(),
+				"identity":          o.Identity,
+				"base_url":          o.BaseUrl,
+				"immutable":         o.Immutable,
+				"update_mask":       o.UpdateMask,
+				"self_link_url":     o.SelfLinkUrl(),
+				"collection_url":    o.CollectionUrl(),
+			}
+		}
+		p["objects"] = objects
+		productsMap[product.Name] = p
+		log.Printf("Added product %s to map with %d objects", product.Name, len(objects))
+	}
+	log.Printf("Total products in map: %d", len(productsMap))
+	sourceByte, err := json.Marshal(productsMap)
+	if err != nil {
+		log.Printf("Error marshaling JSON: %v", err)
+		glog.Exit(err)
+	}
+	log.Printf("Generated JSON size: %d bytes", len(sourceByte))
+	err = os.WriteFile(filepath.Join(outputFolder, "all_data_products_mmv1.json"), sourceByte, 0644)
+	if err != nil {
+		glog.Exit(err)
+	}
+
 	provider.FixImports(*outputPath, *showImportDiffs)
 }
 
@@ -323,8 +381,10 @@ func GenerateProduct(productChannel chan string, providerToGenerate provider.Pro
 
 // Sets provider via flag
 func setProvider(forceProvider, version string, productApi *api.Product, startTime time.Time) provider.Provider {
+	log.Printf(forceProvider)
 	switch forceProvider {
 	case "tgc":
+
 		return provider.NewTerraformGoogleConversion(productApi, version, startTime)
 	case "tgc_cai2hcl":
 		return provider.NewCaiToTerraformConversion(productApi, version, startTime)

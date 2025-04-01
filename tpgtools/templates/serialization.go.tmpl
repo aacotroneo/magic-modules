@@ -32,13 +32,10 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strings"
 
-	fmtcmd "github.com/hashicorp/hcl/hcl/fmtcmd"
 {{- range $name, $path := $.Packages   }}
 	{{$name}} "github.com/GoogleCloudPlatform/declarative-resource-client-library/services/google/{{$path}}"
 {{- end }}
@@ -297,10 +294,5 @@ func convert{{$res.TitleCaseFullName}}{{$version.SerializationSuffix}}{{$v.Packa
 {{- end }}
 
 func formatHCL(hcl string) (string, error) {
-	b := bytes.Buffer{}
-	r := strings.NewReader(hcl)
-	if err := fmtcmd.Run(nil, nil, r, &b, fmtcmd.Options{}); err != nil {
-		return "", err
-	}
-	return b.String(), nil
+	return hcl, nil
 }
